@@ -1,4 +1,14 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%
+    String ctx = request.getContextPath();
+    String role = (String) session.getAttribute("userRole");
+    String username = (String) session.getAttribute("username");
+    if (role == null || !"admin".equals(role)) {
+        response.sendRedirect(ctx + "/login");
+        return;
+    }
+    String userDisplay = (username != null && !username.isEmpty()) ? username : "Admin";
+%>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -208,8 +218,8 @@
             <a href="/doAnTu/admin/tuyen-xe"><span>Tuyến xe</span></a>
             <a href="/doAnTu/admin/chuyen-xe"><span>Chuyến xe</span></a>
             <a href="/doAnTu/admin/xe-va-ghe"><span>Xe và ghế</span></a>
-            <a href="#"><span>Vé đã đặt</span></a>
-            <a href="#"><span>Khách hàng</span></a>
+            <a href="/doAnTu/admin/bookings"><span>Vé đã đặt</span></a>
+            <a href="/doAnTu/admin/customers"><span>Khách hàng</span></a>
             <a href="#"><span>Nhà xe</span></a>
             <a href="#"><span>Phản hồi</span></a>
             <a href="#"><span>Quản trị viên</span></a>
@@ -222,11 +232,12 @@
                 <input type="text" placeholder="Search...">
             </div>
             <div class="user">
-                <div class="avatar">AD</div>
+                <div class="avatar"><%= userDisplay.substring(0,1).toUpperCase() %></div>
                 <div>
-                    <div style="font-weight:700;">Admin</div>
-                    <div style="font-size:12px; color:var(--muted);">Log out • Settings</div>
+                    <div style="font-weight:700;"><%= userDisplay %></div>
+                    <div style="font-size:12px; color:var(--muted);">Quản trị viên</div>
                 </div>
+                <a class="btn" href="<%= ctx %>/logout" style="background: var(--primary); color: #fff;">Đăng xuất</a>
             </div>
         </div>
 

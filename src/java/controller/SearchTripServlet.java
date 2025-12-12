@@ -1,5 +1,6 @@
 package controller;
 
+import dao.BookingDAO;
 import dao.TripDAO;
 import model.Trip;
 
@@ -12,7 +13,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @WebServlet(name = "SearchTripServlet", urlPatterns = {"/search-trips"})
 public class SearchTripServlet extends HttpServlet {
@@ -44,6 +47,16 @@ public class SearchTripServlet extends HttpServlet {
                 } else {
                     trips = tripDAO.searchTrips(origin, destination, date);
                 }
+                
+                // Tính số chỗ còn lại cho mỗi trip
+                BookingDAO bookingDAO = new BookingDAO();
+                Map<Integer, Integer> availableSeatsMap = new HashMap<>();
+                for (Trip trip : trips) {
+                    int bookedCount = bookingDAO.getBookedSeatsCount(trip.getId());
+                    int availableSeats = Math.max(0, trip.getTotalSeats() - bookedCount);
+                    availableSeatsMap.put(trip.getId(), availableSeats);
+                }
+                request.setAttribute("availableSeatsMap", availableSeatsMap);
             } catch (SQLException e) {
                 throw new ServletException("Không thể tìm chuyến xe", e);
             }

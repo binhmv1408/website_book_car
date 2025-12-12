@@ -1,5 +1,6 @@
 package controller;
 
+import dao.BookingDAO;
 import dao.TripDAO;
 import model.Trip;
 
@@ -30,13 +31,21 @@ public class TripDetailServlet extends HttpServlet {
         }
 
         TripDAO tripDAO = new TripDAO();
+        BookingDAO bookingDAO = new BookingDAO();
         try {
             Trip trip = tripDAO.findById(id);
             if (trip == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy chuyến xe");
                 return;
             }
+            
+            // Tính số chỗ còn lại
+            int bookedCount = bookingDAO.getBookedSeatsCount(trip.getId());
+            int availableSeats = Math.max(0, trip.getTotalSeats() - bookedCount);
+            
             request.setAttribute("trip", trip);
+            request.setAttribute("availableSeats", availableSeats);
+            request.setAttribute("totalSeats", trip.getTotalSeats());
             request.getRequestDispatcher("/tripDetail.jsp").forward(request, response);
         } catch (SQLException e) {
             throw new ServletException("Không thể tải chi tiết chuyến xe", e);

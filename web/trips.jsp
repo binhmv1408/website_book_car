@@ -9,6 +9,14 @@
     List<Bus> buses = (List<Bus>) request.getAttribute("buses");
     List<Trip> trips = (List<Trip>) request.getAttribute("trips");
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+    String ctx = request.getContextPath();
+    String role = (String) session.getAttribute("userRole");
+    String username = (String) session.getAttribute("username");
+    if (role == null || !"admin".equals(role)) {
+        response.sendRedirect(ctx + "/login");
+        return;
+    }
+    String userDisplay = (username != null && !username.isEmpty()) ? username : "Admin";
 %>
 <!DOCTYPE html>
 <html>
@@ -120,8 +128,8 @@
             <a href="/doAnTu/admin/tuyen-xe">Tuyến xe</a>
             <a class="active" href="/doAnTu/admin/chuyen-xe">Chuyến xe</a>
             <a href="/doAnTu/admin/xe-va-ghe">Xe và ghế</a>
-            <a href="#">Vé đã đặt</a>
-            <a href="#">Khách hàng</a>
+            <a href="<%= ctx %>/admin/bookings">Vé đã đặt</a>
+            <a href="<%= ctx %>/admin/customers">Khách hàng</a>
             <a href="#">Nhà xe</a>
             <a href="#">Phản hồi</a>
             <a href="#">Quản trị viên</a>
@@ -133,8 +141,9 @@
                 <input type="text" placeholder="Tìm kiếm nhanh...">
             </div>
             <div class="user">
-                <div class="avatar">AD</div>
-                <span>Admin</span>
+                <div class="avatar"><%= userDisplay.substring(0,1).toUpperCase() %></div>
+                <span><%= userDisplay %></span>
+                <a class="btn btn-primary" href="<%= ctx %>/logout" style="margin-left:8px;">Đăng xuất</a>
             </div>
         </header>
 
@@ -162,7 +171,7 @@
                                         if (routes != null) {
                                             for (Route r : routes) {
                                     %>
-                                    <option value="<%= r.getId() %>"><%= r.getName() %></option>
+                                    <option value="<%= r.getId() %>"><%= r.getName() %> (<%= r.getOrigin() %> - <%= r.getDestination() %>)</option>
                                     <%
                                             }
                                         }
@@ -220,7 +229,7 @@
                                         if (routes != null) {
                                             for (Route r : routes) {
                                     %>
-                                    <option value="<%= r.getId() %>" <%= r.getId() == t.getRouteId() ? "selected" : "" %>><%= r.getName() %></option>
+                                    <option value="<%= r.getId() %>" <%= r.getId() == t.getRouteId() ? "selected" : "" %>><%= r.getName() %> (<%= r.getOrigin() %> - <%= r.getDestination() %>)</option>
                                     <%
                                             }
                                         }

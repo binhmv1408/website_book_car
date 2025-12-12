@@ -2,6 +2,16 @@
 <%
     String ctx = request.getContextPath();
     String assets = ctx + "/carbook";
+    String bookingSuccess = (String) session.getAttribute("bookingSuccess");
+    if (bookingSuccess != null) {
+        session.removeAttribute("bookingSuccess");
+    }
+    
+    // Kiểm tra đăng nhập
+    String username = (String) session.getAttribute("username");
+    String fullName = (String) session.getAttribute("fullName");
+    String userRole = (String) session.getAttribute("userRole");
+    boolean isLoggedIn = username != null && "user".equals(userRole);
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -64,19 +74,30 @@
         .booking-info-col .card {
             height: 100%;
         }
-        /* Hiển thị dropdown rõ trên nền xanh */
-        .request-form select.form-control {
+        /* Hiển thị dropdown và input rõ trên nền xanh */
+        .request-form select.form-control,
+        .request-form input.form-control {
             background: #fff;
             color: #1a202c;
             border: 1px solid #dee2e6;
         }
-        .request-form select.form-control:focus {
+        .request-form select.form-control:focus,
+        .request-form input.form-control:focus {
             box-shadow: 0 0 0 0.15rem rgba(12, 98, 240, 0.25);
             border-color: #0c62f0;
+            outline: none;
         }
         .request-form select.form-control option {
             color: #1a202c;
             background: #fff;
+        }
+        /* Đảm bảo input date hiển thị đúng */
+        .request-form input[type="date"].form-control {
+            cursor: pointer;
+        }
+        .request-form input[type="date"].form-control::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 1;
         }
         @media (max-width: 992px) {
             .booking-section {
@@ -92,6 +113,80 @@
                 flex: 1 1 100%;
                 max-width: 100%;
             }
+        }
+        /* Modal dialog cho thông báo đặt vé thành công */
+        .success-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .success-modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .success-modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+        .success-modal-overlay.show .success-modal {
+            transform: scale(1);
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+            color: #fff;
+        }
+        .success-modal h2 {
+            margin: 0 0 12px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #111827;
+        }
+        .success-modal p {
+            margin: 0 0 24px;
+            color: #6b7280;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .success-modal .btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 32px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .success-modal .btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
     </style>
 </head>
@@ -112,6 +207,27 @@
                     <li class="nav-item"><a href="#" class="nav-link">Xe</a></li>
                     <li class="nav-item"><a href="#" class="nav-link">Blog</a></li>
                     <li class="nav-item"><a href="#" class="nav-link">Liên hệ</a></li>
+                    <% if (isLoggedIn) { %>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="padding: 8px 12px;">
+                                <span style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 700; margin-right: 8px; font-size: 14px;">
+                                    <%= fullName != null && !fullName.isEmpty() ? fullName.substring(0, 1).toUpperCase() : username.substring(0, 1).toUpperCase() %>
+                                </span>
+                                <span><%= fullName != null && !fullName.isEmpty() ? fullName : username %></span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown" style="min-width: 200px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; padding: 8px; margin-top: 8px;">
+                                <div class="dropdown-item-text" style="padding: 8px 12px; color: #6b7280; font-size: 13px;">
+                                    <strong style="color: #1a202c;"><%= username %></strong>
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="<%= ctx %>/logout" style="padding: 8px 12px; color: #dc2626; font-size: 14px;">
+                                    <span style="margin-right: 8px;">🚪</span>Đăng xuất
+                                </a>
+                            </div>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item"><a href="<%= ctx %>/login" class="nav-link">Đăng nhập</a></li>
+                    <% } %>
                 </ul>
             </div>
         </div>
@@ -164,7 +280,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="label">Ngày đi (không bắt buộc)</label>
-                                    <input type="date" class="form-control" id="book_pick_date" name="date" autocomplete="off">
+                                    <input type="date" name="date" id="searchDate" class="form-control">
                                 </div>
                                 <div class="form-group">
                                     <input type="submit" value="Tìm chuyến xe" class="btn btn-secondary py-3 px-4">
@@ -663,5 +779,42 @@
                 });
         })();
     </script>
+    <% if (bookingSuccess != null) { %>
+    <!-- Modal dialog thông báo đặt vé thành công -->
+    <div class="success-modal-overlay" id="successModal">
+        <div class="success-modal">
+            <div class="success-icon">✓</div>
+            <h2>Đặt vé thành công!</h2>
+            <p><%= bookingSuccess %></p>
+            <button class="btn" onclick="closeSuccessModal()">Đóng</button>
+        </div>
+    </div>
+    <script>
+        (function() {
+            // Hiển thị modal ngay khi trang load
+            const modal = document.getElementById('successModal');
+            if (modal) {
+                modal.classList.add('show');
+            }
+        })();
+        
+        function closeSuccessModal() {
+            const modal = document.getElementById('successModal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(function() {
+                    modal.remove();
+                }, 300);
+            }
+        }
+        
+        // Đóng modal khi click vào overlay
+        document.getElementById('successModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSuccessModal();
+            }
+        });
+    </script>
+    <% } %>
 </body>
 </html>

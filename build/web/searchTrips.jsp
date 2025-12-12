@@ -1,5 +1,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="java.util.List" %>
+<%@ page import="java.util.Map" %>
 <%@ page import="model.Trip" %>
 <%
     String ctx = request.getContextPath();
@@ -8,6 +9,7 @@
     if (trips == null) {
         trips = java.util.Collections.emptyList();
     }
+    Map<Integer, Integer> availableSeatsMap = (Map<Integer, Integer>) request.getAttribute("availableSeatsMap");
     String from = (String) request.getAttribute("from");
     String to = (String) request.getAttribute("to");
     String date = (String) request.getAttribute("date");
@@ -23,6 +25,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tìm kiếm chuyến xe</title>
     <link rel="stylesheet" href="<%= ctx %>/carbook/css/style.css?v=1">
+    <script>
+        // NGĂN DATEPICKER NGAY TỪ ĐẦU - v2.0 - <%= new java.util.Date().getTime() %>
+        // Ngăn datepicker được khởi tạo NGAY TỪ ĐẦU - chạy trước tất cả script khác
+        (function() {
+            // Override jQuery datepicker ngay khi jQuery được load
+            var checkAndOverride = function() {
+                if (typeof window.jQuery !== 'undefined' && window.jQuery.fn && window.jQuery.fn.datepicker) {
+                    var originalDatepicker = window.jQuery.fn.datepicker;
+                    window.jQuery.fn.datepicker = function(options) {
+                        // Kiểm tra nếu là input #date hoặc type="date" thì KHÔNG khởi tạo
+                        var shouldBlock = false;
+                        if (this.length > 0) {
+                            this.each(function() {
+                                if (this.id === 'date' || this.type === 'date' || 
+                                    (this.getAttribute && this.getAttribute('name') === 'date')) {
+                                    shouldBlock = true;
+                                    return false;
+                                }
+                            });
+                        }
+                        if (shouldBlock) {
+                            // Xóa datepicker nếu đã được khởi tạo
+                            try {
+                                this.each(function() {
+                                    if (window.jQuery(this).data('datepicker')) {
+                                        window.jQuery(this).datepicker('destroy');
+                                    }
+                                });
+                            } catch(e) {}
+                            return this;
+                        }
+                        // Cho phép khởi tạo cho các element khác
+                        return originalDatepicker.call(this, options);
+                    };
+                    return true;
+                }
+                return false;
+            };
+            
+            // Chạy ngay
+            if (!checkAndOverride()) {
+                // Nếu jQuery chưa load, đợi nó load
+                var interval = setInterval(function() {
+                    if (checkAndOverride()) {
+                        clearInterval(interval);
+                    }
+                }, 10);
+                // Dừng sau 5 giây
+                setTimeout(function() {
+                    clearInterval(interval);
+                }, 5000);
+            }
+        })();
+    </script>
     <style>
         body {
             background: #f3f4f6;
@@ -46,9 +102,9 @@
             backdrop-filter: blur(6px);
             box-shadow: 0 6px 18px rgba(0,0,0,0.12);
         }
-        .page { max-width: 1200px; margin: 20px auto 30px; padding: 0 20px; }
-        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
-        .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 10px 32px rgba(0,0,0,0.06); }
+        .page { position: relative; z-index: 2; max-width: 1200px; margin: 20px auto 30px; padding: 0 20px; }
+        .layout { position: relative; z-index: 2; display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+        .card { position: relative; z-index: 2; background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 10px 32px rgba(0,0,0,0.06); }
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
         .form-group label { font-weight: 700; color: #374151; }
         .btn-primary { background: #2d5bff; border: none; }
@@ -122,6 +178,54 @@
         }
         .hero h1 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
         .hero p { margin: 0; opacity: 0.92; }
+        .date-input {
+            background: #fff;
+            color: #111827;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            height: 46px;
+            padding: 10px 12px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .date-input:focus {
+            outline: none;
+            border-color: #2d5bff;
+            box-shadow: 0 0 0 3px rgba(45, 91, 255, 0.1);
+        }
+        /* Ẩn và xóa hoàn toàn tất cả bootstrap datepicker */
+        .datepicker-dropdown,
+        .datepicker-inline,
+        .datepicker,
+        div.datepicker,
+        .datepicker-orient-top,
+        .datepicker-orient-bottom {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            left: -9999px !important;
+        }
+        /* Đảm bảo input date hiển thị đúng và có thể click */
+        input[type="date"] {
+            position: relative;
+            z-index: 10;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 1;
+            z-index: 11;
+        }
+        /* Ẩn input text giả mạo của datepicker */
+        input.datepicker,
+        input[data-provide="datepicker"] {
+            display: none !important;
+        }
         @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
             .trip-card { grid-template-columns: 1fr; }
@@ -146,6 +250,33 @@
                 <li class="nav-item"><a href="#" class="nav-link">Xe</a></li>
                 <li class="nav-item"><a href="#" class="nav-link">Blog</a></li>
                 <li class="nav-item"><a href="#" class="nav-link">Liên hệ</a></li>
+                <% 
+                    String username = (String) session.getAttribute("username");
+                    String fullName = (String) session.getAttribute("fullName");
+                    String userRole = (String) session.getAttribute("userRole");
+                    boolean isLoggedIn = username != null && "user".equals(userRole);
+                %>
+                <% if (isLoggedIn) { %>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 700; margin-right: 8px; font-size: 14px;">
+                                <%= fullName != null && !fullName.isEmpty() ? fullName.substring(0, 1).toUpperCase() : username.substring(0, 1).toUpperCase() %>
+                            </span>
+                            <span><%= fullName != null && !fullName.isEmpty() ? fullName : username %></span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown" style="min-width: 200px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; padding: 8px;">
+                            <div class="dropdown-item-text" style="padding: 8px 12px; color: #6b7280; font-size: 13px;">
+                                <strong style="color: #1a202c;"><%= username %></strong>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="<%= ctx %>/logout" style="padding: 8px 12px; color: #dc2626; font-size: 14px;">
+                                <span style="margin-right: 8px;">🚪</span>Đăng xuất
+                            </a>
+                        </div>
+                    </li>
+                <% } else { %>
+                    <li class="nav-item"><a href="<%= ctx %>/login" class="nav-link">Đăng nhập</a></li>
+                <% } %>
             </ul>
         </div>
     </div>
@@ -192,15 +323,19 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="from">Điểm đi</label>
-                            <input type="text" id="from" name="from" class="form-control" value="<%= from == null ? "" : from %>" placeholder="VD: Hà Nội">
+                            <select id="from" name="from" class="form-control">
+                                <option value="">Chọn tỉnh/thành</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="to">Điểm đến</label>
-                            <input type="text" id="to" name="to" class="form-control" value="<%= to == null ? "" : to %>" placeholder="VD: Đà Nẵng">
+                            <select id="to" name="to" class="form-control">
+                                <option value="">Chọn tỉnh/thành</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="date">Ngày đi</label>
-                            <input type="date" id="date" name="date" class="form-control" value="<%= date == null ? "" : date %>">
+                            <input type="date" id="date" name="date" class="date-input" value="<%= date == null ? "" : date %>" data-provide="" autocomplete="off">
                         </div>
                     </div>
                     <div style="margin-top:12px;">
@@ -289,17 +424,23 @@
                                         }
                                     %></strong>
                                     <div class="sub"><%
-                                        int seats = t.getTotalSeats();
-                                        if (seats > 0) {
-                                            out.print("Còn " + seats + " chỗ");
+                                        int availableSeats = 0;
+                                        if (availableSeatsMap != null && availableSeatsMap.containsKey(t.getId())) {
+                                            availableSeats = availableSeatsMap.get(t.getId());
                                         } else {
-                                            out.print("Sức chứa đang cập nhật");
+                                            // Fallback: dùng total_seats nếu không có trong map
+                                            availableSeats = t.getTotalSeats();
+                                        }
+                                        if (availableSeats > 0) {
+                                            out.print("Còn " + availableSeats + " chỗ");
+                                        } else {
+                                            out.print("Hết chỗ");
                                         }
                                     %></div>
                                 </div>
                                 <div class="actions" style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
                                     <a class="btn btn-ghost" style="width:120px; text-align:center;" href="<%= ctx %>/trip-detail?id=<%= t.getId() %>">Xem chi tiết</a>
-                                    <button class="btn btn-primary" style="width:120px;">Đặt xe</button>
+                                    <a class="btn btn-primary" style="width:120px; text-align:center; text-decoration:none;" href="<%= ctx %>/select-seats?tripId=<%= t.getId() %>">Đặt xe</a>
                                 </div>
                             </div>
                         </div>
@@ -310,6 +451,308 @@
         </div>
     </div>
 </div>
+<script>
+    // XÓA HOÀN TOÀN BOOTSTRAP DATEPICKER - CHỈ DÙNG NATIVE DATE PICKER
+    (function() {
+        'use strict';
+        
+        // Hàm xóa TẤT CẢ datepicker elements - chạy cực nhanh
+        function removeAllDatepickers() {
+            try {
+                // Xóa tất cả datepicker elements
+                var allDatepickers = document.querySelectorAll('.datepicker, .datepicker-dropdown, .datepicker-inline, div.datepicker, [class*="datepicker"]');
+                for (var i = 0; i < allDatepickers.length; i++) {
+                    try {
+                        if (allDatepickers[i] && allDatepickers[i].parentNode) {
+                            allDatepickers[i].remove();
+                        }
+                    } catch(e) {}
+                }
+            } catch(e) {}
+        }
+        
+        // Override jQuery datepicker NGAY LẬP TỨC
+        function overrideJQueryDatepicker() {
+            if (typeof window.jQuery !== 'undefined' && window.jQuery.fn && window.jQuery.fn.datepicker) {
+                var originalDatepicker = window.jQuery.fn.datepicker;
+                window.jQuery.fn.datepicker = function(options) {
+                    // Kiểm tra nếu là input #date thì KHÔNG khởi tạo
+                    var shouldBlock = false;
+                    if (this.length > 0) {
+                        for (var i = 0; i < this.length; i++) {
+                            var el = this[i];
+                            if (el && (el.id === 'date' || el.type === 'date' || 
+                                (el.getAttribute && el.getAttribute('name') === 'date'))) {
+                                shouldBlock = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (shouldBlock) {
+                        // Xóa datepicker nếu đã được khởi tạo
+                        try {
+                            for (var i = 0; i < this.length; i++) {
+                                if (window.jQuery(this[i]).data('datepicker')) {
+                                    window.jQuery(this[i]).datepicker('destroy');
+                                    window.jQuery(this[i]).removeData('datepicker');
+                                }
+                            }
+                        } catch(e) {}
+                        removeAllDatepickers();
+                        return this;
+                    }
+                    
+                    // Cho phép khởi tạo cho các element khác
+                    return originalDatepicker.call(this, options);
+                };
+                return true;
+            }
+            return false;
+        }
+        
+        // Đảm bảo input #date chỉ dùng native picker
+        function ensureNativeDatePicker() {
+            var dateInput = document.getElementById('date');
+            if (!dateInput) return;
+            
+            // Đảm bảo luôn là type="date"
+            if (dateInput.type !== 'date') {
+                dateInput.type = 'date';
+            }
+            
+            // Xóa tất cả attributes có thể trigger datepicker
+            dateInput.removeAttribute('data-provide');
+            dateInput.removeAttribute('data-datepicker');
+            dateInput.removeAttribute('data-toggle');
+            
+            // Ngăn bootstrap datepicker được khởi tạo
+            if (typeof window.jQuery !== 'undefined' && window.jQuery.fn && window.jQuery.fn.datepicker) {
+                try {
+                    // Hủy datepicker nếu đã được khởi tạo
+                    if (window.jQuery(dateInput).data('datepicker')) {
+                        window.jQuery(dateInput).datepicker('destroy');
+                        window.jQuery(dateInput).removeData('datepicker');
+                    }
+                } catch(e) {}
+                
+                // Xóa tất cả event handlers
+                window.jQuery(dateInput).off('.datepicker');
+                window.jQuery(dateInput).off('focus click show hide changeDate');
+                
+                // Ngăn datepicker được khởi tạo khi focus/click
+                window.jQuery(dateInput).on('focus.datepicker-block click.datepicker-block', function(e) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    removeAllDatepickers();
+                    if (this.type !== 'date') {
+                        this.type = 'date';
+                    }
+                    return false;
+                });
+            }
+            
+            // Xóa datepicker elements
+            removeAllDatepickers();
+            
+            // Đảm bảo input có thể click để mở native picker
+            dateInput.addEventListener('click', function(e) {
+                removeAllDatepickers();
+                if (this.type !== 'date') {
+                    this.type = 'date';
+                }
+            }, true);
+            
+            dateInput.addEventListener('focus', function(e) {
+                removeAllDatepickers();
+            }, true);
+        }
+        
+        // MutationObserver với tốc độ cao để xóa datepicker NGAY LẬP TỨC
+        var observer = new MutationObserver(function(mutations) {
+            var found = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var addedNodes = mutations[i].addedNodes;
+                for (var j = 0; j < addedNodes.length; j++) {
+                    var node = addedNodes[j];
+                    if (node.nodeType === 1) { // Element node
+                        if (node.classList) {
+                            if (node.classList.contains('datepicker') ||
+                                node.classList.contains('datepicker-dropdown') ||
+                                node.classList.contains('datepicker-inline')) {
+                                node.remove();
+                                found = true;
+                            }
+                        }
+                        // Kiểm tra các phần tử con
+                        if (node.querySelectorAll) {
+                            var datepickers = node.querySelectorAll('.datepicker, .datepicker-dropdown, .datepicker-inline');
+                            if (datepickers.length > 0) {
+                                for (var k = 0; k < datepickers.length; k++) {
+                                    datepickers[k].remove();
+                                }
+                                found = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (found) {
+                removeAllDatepickers();
+            }
+        });
+        
+        // Bắt đầu quan sát NGAY LẬP TỨC
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
+        
+        // Override jQuery datepicker ngay khi jQuery được load
+        overrideJQueryDatepicker();
+        
+        // Đợi jQuery load và override lại
+        var checkInterval = setInterval(function() {
+            if (overrideJQueryDatepicker()) {
+                clearInterval(checkInterval);
+            }
+        }, 10);
+        setTimeout(function() {
+            clearInterval(checkInterval);
+        }, 5000);
+        
+        // Chạy khi DOM ready
+        function init() {
+            overrideJQueryDatepicker();
+            ensureNativeDatePicker();
+            removeAllDatepickers();
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        // Chạy lại nhiều lần với interval ngắn để đảm bảo
+        var cleanupInterval = setInterval(function() {
+            removeAllDatepickers();
+            ensureNativeDatePicker();
+        }, 50);
+        
+        // Dừng sau 10 giây
+        setTimeout(function() {
+            clearInterval(cleanupInterval);
+        }, 10000);
+        
+        // Chạy lại sau các khoảng thời gian
+        setTimeout(init, 100);
+        setTimeout(init, 300);
+        setTimeout(init, 500);
+        setTimeout(init, 1000);
+        setTimeout(init, 2000);
+        
+        // Override lại sau khi tất cả script đã load
+        window.addEventListener('load', function() {
+            overrideJQueryDatepicker();
+            ensureNativeDatePicker();
+            removeAllDatepickers();
+            
+            // Tiếp tục xóa định kỳ
+            setInterval(function() {
+                removeAllDatepickers();
+            }, 100);
+        });
+        
+        // Ngăn datepicker khởi tạo trên tất cả input date
+        document.addEventListener('click', function(e) {
+            var target = e.target;
+            if (target && (target.id === 'date' || target.type === 'date' || 
+                (target.getAttribute && target.getAttribute('name') === 'date'))) {
+                removeAllDatepickers();
+                if (typeof window.jQuery !== 'undefined' && window.jQuery.fn && window.jQuery.fn.datepicker) {
+                    try {
+                        if (window.jQuery(target).data('datepicker')) {
+                            window.jQuery(target).datepicker('destroy');
+                            window.jQuery(target).removeData('datepicker');
+                        }
+                    } catch(e) {}
+                }
+            } else {
+                // Xóa datepicker khi click bất kỳ đâu ngoài input
+                removeAllDatepickers();
+            }
+        }, true);
+        
+        // Xóa datepicker khi focus
+        document.addEventListener('focus', function(e) {
+            var target = e.target;
+            if (target && (target.id === 'date' || target.type === 'date')) {
+                removeAllDatepickers();
+            }
+        }, true);
+    })();
+</script>
+<script>
+    (function() {
+        const fromSelect = document.getElementById('from');
+        const toSelect = document.getElementById('to');
+        const fromValue = '<%= from == null ? "" : from %>';
+        const toValue = '<%= to == null ? "" : to %>';
+        const provinceFallback = [
+            "An Giang","Bà Rịa - Vũng Tàu","Bắc Giang","Bắc Kạn","Bạc Liêu","Bắc Ninh",
+            "Bến Tre","Bình Định","Bình Dương","Bình Phước","Bình Thuận","Cà Mau",
+            "Cần Thơ","Cao Bằng","Đà Nẵng","Đắk Lắk","Đắk Nông","Điện Biên","Đồng Nai",
+            "Đồng Tháp","Gia Lai","Hà Giang","Hà Nam","Hà Nội","Hà Tĩnh","Hải Dương",
+            "Hải Phòng","Hậu Giang","Hòa Bình","Hưng Yên","Khánh Hòa","Kiên Giang",
+            "Kon Tum","Lai Châu","Lâm Đồng","Lạng Sơn","Lào Cai","Long An","Nam Định",
+            "Nghệ An","Ninh Bình","Ninh Thuận","Phú Thọ","Phú Yên","Quảng Bình",
+            "Quảng Nam","Quảng Ngãi","Quảng Ninh","Quảng Trị","Sóc Trăng","Sơn La",
+            "Tây Ninh","Thái Bình","Thái Nguyên","Thanh Hóa","Thừa Thiên Huế",
+            "Tiền Giang","TP. Hồ Chí Minh","Trà Vinh","Tuyên Quang","Vĩnh Long",
+            "Vĩnh Phúc","Yên Bái"
+        ];
+
+        function fillSelect(sel, provinces, selectedValue) {
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Chọn tỉnh/thành</option>';
+            provinces.forEach(function(p) {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                if (selectedValue && p === selectedValue) {
+                    opt.selected = true;
+                }
+                sel.appendChild(opt);
+            });
+        }
+
+        function populate(provinces) {
+            fillSelect(fromSelect, provinces, fromValue);
+            fillSelect(toSelect, provinces, toValue);
+        }
+
+        fetch('<%= ctx %>/tinhthanh.json')
+            .then(function(res){ return res.json(); })
+            .then(function(data){
+                const provs = (data && data.VietnamProvinces)
+                    ? data.VietnamProvinces.map(function(p){ return p.province; })
+                    : provinceFallback;
+                populate(provs);
+            })
+            .catch(function(){
+                populate(provinceFallback);
+            });
+    })();
+</script>
 </body>
 </html>
-

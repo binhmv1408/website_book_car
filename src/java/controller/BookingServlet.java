@@ -220,9 +220,20 @@ public class BookingServlet extends HttpServlet {
                 bookingItems.add(new model.BookingItem(0, normalized, seatPrice));
             }
 
+            // Lấy userId từ session
+            HttpSession session = request.getSession(false);
+            Integer userId = null;
+            if (session != null) {
+                Object userIdObj = session.getAttribute("userId");
+                if (userIdObj != null) {
+                    userId = (Integer) userIdObj;
+                }
+            }
+            
             // Tạo booking với nhiều ghế
             Booking booking = new Booking();
             booking.setTripId(tripId);
+            booking.setUserId(userId); // Lưu userId để biết ai đã đặt vé
             booking.setCustomerName(customerName.trim());
             booking.setCustomerPhone(customerPhone.trim());
             booking.setCustomerEmail(customerEmail != null ? customerEmail.trim() : null);

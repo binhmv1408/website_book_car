@@ -2,8 +2,10 @@ package controller;
 
 import dao.BookingDAO;
 import dao.TripDAO;
+import dao.UserDAO;
 import model.Booking;
 import model.Trip;
+import model.User;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -50,6 +52,7 @@ public class BookingsManagementServlet extends HttpServlet {
     private void handleListBookings(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         BookingDAO bookingDAO = new BookingDAO();
         TripDAO tripDAO = new TripDAO();
+        UserDAO userDAO = new UserDAO();
         
         try {
             // Lấy tất cả bookings
@@ -59,6 +62,8 @@ public class BookingsManagementServlet extends HttpServlet {
             Map<Integer, String> routeNames = new HashMap<>();
             Map<Integer, String> origins = new HashMap<>();
             Map<Integer, String> destinations = new HashMap<>();
+            Map<Integer, User> users = new HashMap<>();
+            
             for (Booking booking : bookings) {
                 if (!routeNames.containsKey(booking.getTripId())) {
                     Trip trip = tripDAO.findById(booking.getTripId());
@@ -66,6 +71,14 @@ public class BookingsManagementServlet extends HttpServlet {
                         routeNames.put(booking.getTripId(), trip.getRouteName() != null ? trip.getRouteName() : "Chuyến #" + booking.getTripId());
                         origins.put(booking.getTripId(), trip.getOrigin() != null ? trip.getOrigin() : "N/A");
                         destinations.put(booking.getTripId(), trip.getDestination() != null ? trip.getDestination() : "N/A");
+                    }
+                }
+                
+                // Lấy thông tin user nếu có userId
+                if (booking.getUserId() != null && !users.containsKey(booking.getUserId())) {
+                    User user = userDAO.findById(booking.getUserId());
+                    if (user != null) {
+                        users.put(booking.getUserId(), user);
                     }
                 }
             }
@@ -79,6 +92,11 @@ public class BookingsManagementServlet extends HttpServlet {
             }
             for (Map.Entry<Integer, String> entry : destinations.entrySet()) {
                 request.setAttribute("destination_" + entry.getKey(), entry.getValue());
+            }
+            
+            // Set user info vào request
+            for (Map.Entry<Integer, User> entry : users.entrySet()) {
+                request.setAttribute("user_" + entry.getKey(), entry.getValue());
             }
             
             request.setAttribute("bookings", bookings);
@@ -105,6 +123,7 @@ public class BookingsManagementServlet extends HttpServlet {
 
         BookingDAO bookingDAO = new BookingDAO();
         TripDAO tripDAO = new TripDAO();
+        UserDAO userDAO = new UserDAO();
         
         try {
             Booking booking = bookingDAO.findById(id);
@@ -116,12 +135,19 @@ public class BookingsManagementServlet extends HttpServlet {
             // Lấy thông tin chuyến xe
             Trip trip = tripDAO.findById(booking.getTripId());
             
+            // Lấy thông tin user nếu có userId
+            User user = null;
+            if (booking.getUserId() != null) {
+                user = userDAO.findById(booking.getUserId());
+            }
+            
             // Lấy danh sách ghế từ booking_items
             List<model.BookingItem> items = bookingDAO.getBookingItems(booking.getId());
             booking.setItems(items);
             
             request.setAttribute("booking", booking);
             request.setAttribute("trip", trip);
+            request.setAttribute("user", user);
             request.getRequestDispatcher("/bookingDetail.jsp").forward(request, response);
         } catch (SQLException e) {
             throw new ServletException("Không thể tải chi tiết vé", e);

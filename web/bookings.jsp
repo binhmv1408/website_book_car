@@ -2,6 +2,7 @@
 <%@ page import="java.util.List" %>
 <%@ page import="model.Booking" %>
 <%@ page import="model.BookingItem" %>
+<%@ page import="model.User" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
 <%
     List<Booking> bookings = (List<Booking>) request.getAttribute("bookings");
@@ -317,6 +318,7 @@
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Người đặt</th>
                             <th>Khách hàng</th>
                             <th>SĐT</th>
                             <th>Chuyến xe</th>
@@ -331,9 +333,19 @@
                         </tr>
                     </thead>
                     <tbody id="bookingsTable">
-                        <% for (Booking booking : bookings) { %>
+                        <% for (Booking booking : bookings) { 
+                            User bookingUser = (User) request.getAttribute("user_" + (booking.getUserId() != null ? booking.getUserId() : 0));
+                        %>
                         <tr>
                             <td><strong>#<%= booking.getId() %></strong></td>
+                            <td>
+                                <% if (bookingUser != null) { %>
+                                    <span style="color: var(--primary); font-weight: 600;"><%= bookingUser.getUsername() %></span>
+                                    <br><small style="color: var(--muted);"><%= bookingUser.getFullName() != null ? bookingUser.getFullName() : "" %></small>
+                                <% } else { %>
+                                    <span style="color: var(--muted);">Khách vãng lai</span>
+                                <% } %>
+                            </td>
                             <td><%= booking.getCustomerName() %></td>
                             <td><%= booking.getCustomerPhone() %></td>
                             <td>

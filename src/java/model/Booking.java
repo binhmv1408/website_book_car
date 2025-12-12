@@ -6,6 +6,7 @@ import java.util.List;
 public class Booking {
     private int id;
     private int tripId;
+    private Integer userId; // ID của user đã đặt vé (có thể null nếu đặt không đăng nhập)
     private String customerName;
     private String customerPhone;
     private String customerEmail;
@@ -123,6 +124,14 @@ public class Booking {
 
     public void setItems(List<BookingItem> items) {
         this.items = items;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 }
 

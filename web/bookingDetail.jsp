@@ -2,6 +2,7 @@
 <%@ page import="model.Booking" %>
 <%@ page import="model.BookingItem" %>
 <%@ page import="model.Trip" %>
+<%@ page import="model.User" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
 <%
     Booking booking = (Booking) request.getAttribute("booking");
@@ -289,8 +290,35 @@
                 <span>Chi tiết vé #<%= booking != null ? booking.getId() : "" %></span>
             </div>
 
-            <% if (booking != null) { %>
+            <% if (booking != null) { 
+                User bookingUser = (User) request.getAttribute("user");
+            %>
             <div class="detail-card">
+                <div class="detail-section">
+                    <div class="section-title">Thông tin người đặt vé</div>
+                    <div class="info-grid">
+                        <% if (bookingUser != null) { %>
+                        <div class="info-item">
+                            <div class="info-label">Tài khoản</div>
+                            <div class="info-value" style="color: var(--primary);"><%= bookingUser.getUsername() %></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Họ và tên (tài khoản)</div>
+                            <div class="info-value"><%= bookingUser.getFullName() != null ? bookingUser.getFullName() : "N/A" %></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email (tài khoản)</div>
+                            <div class="info-value"><%= bookingUser.getEmail() != null ? bookingUser.getEmail() : "N/A" %></div>
+                        </div>
+                        <% } else { %>
+                        <div class="info-item">
+                            <div class="info-label">Loại</div>
+                            <div class="info-value" style="color: var(--muted);">Khách vãng lai (không đăng nhập)</div>
+                        </div>
+                        <% } %>
+                    </div>
+                </div>
+                
                 <div class="detail-section">
                     <div class="section-title">Thông tin khách hàng</div>
                     <div class="info-grid">

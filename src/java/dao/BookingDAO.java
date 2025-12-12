@@ -153,21 +153,26 @@ public class BookingDAO {
             conn.setAutoCommit(false); // Bắt đầu transaction
             
             // Insert booking
-            String sql = "INSERT INTO bookings(trip_id, customer_name, customer_phone, customer_email, quantity, status, total_price, seat_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO bookings(trip_id, user_id, customer_name, customer_phone, customer_email, quantity, status, total_price, seat_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             int bookingId = 0;
             try (PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, booking.getTripId());
-                ps.setString(2, booking.getCustomerName());
-                ps.setString(3, booking.getCustomerPhone());
-                ps.setString(4, booking.getCustomerEmail());
-                ps.setInt(5, booking.getQuantity() > 0 ? booking.getQuantity() : 1);
-                ps.setString(6, booking.getStatus());
-                ps.setDouble(7, booking.getTotalPrice());
+                if (booking.getUserId() != null) {
+                    ps.setInt(2, booking.getUserId());
+                } else {
+                    ps.setNull(2, java.sql.Types.INTEGER);
+                }
+                ps.setString(3, booking.getCustomerName());
+                ps.setString(4, booking.getCustomerPhone());
+                ps.setString(5, booking.getCustomerEmail());
+                ps.setInt(6, booking.getQuantity() > 0 ? booking.getQuantity() : 1);
+                ps.setString(7, booking.getStatus());
+                ps.setDouble(8, booking.getTotalPrice());
                 // Giữ seat_number để tương thích (lấy ghế đầu tiên hoặc danh sách)
                 String firstSeat = booking.getItems() != null && !booking.getItems().isEmpty() 
                     ? booking.getItems().get(0).getSeatNumber() 
                     : booking.getSeatNumber();
-                ps.setString(8, firstSeat);
+                ps.setString(9, firstSeat);
                 ps.executeUpdate();
                 
                 // Lấy ID vừa được tạo
@@ -209,7 +214,7 @@ public class BookingDAO {
 
     // Lấy booking theo ID
     public Booking findById(int id) throws SQLException {
-        String sql = "SELECT id, trip_id, customer_name, customer_phone, customer_email, quantity, seat_number, booking_date, status, total_price FROM bookings WHERE id = ?";
+        String sql = "SELECT id, trip_id, user_id, customer_name, customer_phone, customer_email, quantity, seat_number, booking_date, status, total_price FROM bookings WHERE id = ?";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -218,6 +223,10 @@ public class BookingDAO {
                     Booking booking = new Booking();
                     booking.setId(rs.getInt("id"));
                     booking.setTripId(rs.getInt("trip_id"));
+                    int userId = rs.getInt("user_id");
+                    if (!rs.wasNull()) {
+                        booking.setUserId(userId);
+                    }
                     booking.setCustomerName(rs.getString("customer_name"));
                     booking.setCustomerPhone(rs.getString("customer_phone"));
                     booking.setCustomerEmail(rs.getString("customer_email"));
@@ -241,13 +250,13 @@ public class BookingDAO {
     // Lấy tất cả bookings của một chuyến xe
     public List<Booking> findByTripId(int tripId) throws SQLException {
         List<Booking> bookings = new ArrayList<>();
-        String sql = "SELECT id, trip_id, customer_name, customer_phone, customer_email, seat_number, booking_date, status, total_price FROM bookings WHERE trip_id = ? ORDER BY booking_date DESC";
+        String sql = "SELECT id, trip_id, user_id, customer_name, customer_phone, customer_email, seat_number, booking_date, status, total_price FROM bookings WHERE trip_id = ? ORDER BY booking_date DESC";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, tripId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    bookings.add(new Booking(
+                    Booking booking = new Booking(
                             rs.getInt("id"),
                             rs.getInt("trip_id"),
                             rs.getString("customer_name"),
@@ -257,7 +266,12 @@ public class BookingDAO {
                             rs.getTimestamp("booking_date") != null ? rs.getTimestamp("booking_date").toLocalDateTime() : null,
                             rs.getString("status"),
                             rs.getDouble("total_price")
-                    ));
+                    );
+                    int userId = rs.getInt("user_id");
+                    if (!rs.wasNull()) {
+                        booking.setUserId(userId);
+                    }
+                    bookings.add(booking);
                 }
             }
         }
@@ -291,7 +305,7 @@ public class BookingDAO {
     // Lấy tất cả bookings
     public List<Booking> getAllBookings() throws SQLException {
         List<Booking> bookings = new ArrayList<>();
-        String sql = "SELECT id, trip_id, customer_name, customer_phone, customer_email, quantity, booking_date, status, total_price, seat_number " +
+        String sql = "SELECT id, trip_id, user_id, customer_name, customer_phone, customer_email, quantity, booking_date, status, total_price, seat_number " +
                      "FROM bookings ORDER BY booking_date DESC";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -300,6 +314,10 @@ public class BookingDAO {
                 Booking booking = new Booking();
                 booking.setId(rs.getInt("id"));
                 booking.setTripId(rs.getInt("trip_id"));
+                int userId = rs.getInt("user_id");
+                if (!rs.wasNull()) {
+                    booking.setUserId(userId);
+                }
                 booking.setCustomerName(rs.getString("customer_name"));
                 booking.setCustomerPhone(rs.getString("customer_phone"));
                 booking.setCustomerEmail(rs.getString("customer_email"));
@@ -314,6 +332,40 @@ public class BookingDAO {
                 booking.setItems(items);
                 
                 bookings.add(booking);
+            }
+        }
+        return bookings;
+    }
+    
+    // Lấy tất cả bookings của một user
+    public List<Booking> findByUserId(int userId) throws SQLException {
+        List<Booking> bookings = new ArrayList<>();
+        String sql = "SELECT id, trip_id, user_id, customer_name, customer_phone, customer_email, quantity, booking_date, status, total_price, seat_number " +
+                     "FROM bookings WHERE user_id = ? ORDER BY booking_date DESC";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Booking booking = new Booking();
+                    booking.setId(rs.getInt("id"));
+                    booking.setTripId(rs.getInt("trip_id"));
+                    booking.setUserId(rs.getInt("user_id"));
+                    booking.setCustomerName(rs.getString("customer_name"));
+                    booking.setCustomerPhone(rs.getString("customer_phone"));
+                    booking.setCustomerEmail(rs.getString("customer_email"));
+                    booking.setQuantity(rs.getInt("quantity"));
+                    booking.setBookingDate(rs.getTimestamp("booking_date") != null ? rs.getTimestamp("booking_date").toLocalDateTime() : null);
+                    booking.setStatus(rs.getString("status"));
+                    booking.setTotalPrice(rs.getDouble("total_price"));
+                    booking.setSeatNumber(rs.getString("seat_number"));
+                    
+                    // Lấy danh sách ghế từ booking_items
+                    List<BookingItem> items = getBookingItems(booking.getId());
+                    booking.setItems(items);
+                    
+                    bookings.add(booking);
+                }
             }
         }
         return bookings;
